@@ -1,45 +1,32 @@
 import nmap
-from typing import Dict, Any
-from .base_scanner import BaseScanner
+from scanners.base_scanner import BaseScanner
 
 class PortScanner(BaseScanner):
-    def __init__(self):
-        super().__init__()
-        self.nm = nmap.PortScanner()
+    def __init__(self, target: str):
+        super().__init__(target)
+        self.nm = nmap.PortScanner()  # Initialize nmap scanner without target
         
-    async def scan(self, target: str) -> Dict[str, Any]:
+    async def scan(self) -> dict:
         try:
-            # Run a SYN scan on common ports
-            self.nm.scan(target, arguments='-sS -sV -F --version-intensity 5')
+            # Perform the scan with target during scan operation
+            self.nm.scan(self.target, arguments='-sV -sS -p-')
             
-            scan_results = {}
+            # Process results
+            self.results = {
+                'target': self.target,
+                'hosts': {}
+            }
+            
             for host in self.nm.all_hosts():
-                host_data = {
+                self.results['hosts'][host] = {
                     'state': self.nm[host].state(),
-                    'ports': {}
+                    'ports': self.nm[host]['tcp'] if 'tcp' in self.nm[host] else {}
                 }
                 
-                for proto in self.nm[host].all_protocols():
-                    ports = self.nm[host][proto].keys()
-                    for port in ports:
-                        port_data = self.nm[host][proto][port]
-                        host_data['ports'][port] = {
-                            'state': port_data['state'],
-                            'service': port_data['name'],
-                            'version': port_data.get('version', ''),
-                            'product': port_data.get('product', '')
-                        }
-                        
-                scan_results[host] = host_data
+            return self.results
             
-            self.results = {
-                'target': target,
-                'scan_results': scan_results
-            }
         except Exception as e:
-            self.results = {
+            return {
                 'error': str(e),
-                'target': target
+                'target': self.target
             }
-            
-        return self.results

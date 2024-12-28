@@ -1,52 +1,40 @@
 import dns.resolver
 import dns.zone
-from typing import Dict, Any, List
-from .base_scanner import BaseScanner
+from scanners.base_scanner import BaseScanner
 
 class SubdomainFinder(BaseScanner):
-    def __init__(self):
-        super().__init__()
-        self.common_subdomains = [
-            'www', 'mail', 'ftp', 'localhost', 'webmail', 'smtp', 'pop',
-            'ns1', 'ns2', 'dns', 'dns1', 'dns2', 'mx', 'remote', 'blog',
-            'webdisk', 'admin', 'staging', 'dev', 'api', 'test', 'portal'
-        ]
+    def __init__(self, target: str):
+        super().__init__(target)
+        self.common_subdomains = ['www', 'mail', 'ftp', 'admin', 'blog', 'dev', 'test', 'api']
         
-    async def scan(self, target: str) -> Dict[str, Any]:
-        discovered_subdomains = set()
-        
+    async def scan(self) -> dict:
         try:
-            # Try zone transfer first
-            try:
-                ns_records = dns.resolver.resolve(target, 'NS')
-                for ns in ns_records:
-                    try:
-                        zone = dns.zone.from_xfr(dns.query.xfr(str(ns), target))
-                        for name, _ in zone.nodes.items():
-                            subdomain = str(name) + '.' + target
-                            discovered_subdomains.add(subdomain)
-                    except:
-                        continue
-            except:
-                pass
+            found_subdomains = []
             
-            # Brute force common subdomains
-            for sub in self.common_subdomains:
+            # Try common subdomains
+            for subdomain in self.common_subdomains:
                 try:
-                    subdomain = f"{sub}.{target}"
-                    answers = dns.resolver.resolve(subdomain, 'A')
-                    discovered_subdomains.add(subdomain)
-                except:
+                    fqdn = f"{subdomain}.{self.target}"
+                    answers = dns.resolver.resolve(fqdn, 'A')
+                    if answers:
+                        found_subdomains.append({
+                            'subdomain': fqdn,
+                            'ip_addresses': [str(rdata) for rdata in answers]
+                        })
+                except dns.resolver.NXDOMAIN:
                     continue
-                    
+                except Exception:
+                    continue
+            
             self.results = {
-                'target': target,
-                'subdomains': list(discovered_subdomains)
-            }
-        except Exception as e:
-            self.results = {
-                'error': str(e),
-                'target': target
+                'target': self.target,
+                'subdomains': found_subdomains
             }
             
-        return self.results
+            return self.results
+            
+        except Exception as e:
+            return {
+                'error': str(e),
+                'target': self.target
+            }

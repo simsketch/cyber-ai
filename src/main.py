@@ -18,18 +18,22 @@ class SecurityOrchestrator:
     def __init__(self):
         load_dotenv()
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
+        self.target = os.getenv('SCAN_TARGET')
+        
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
+        if not self.target:
+            raise ValueError("SCAN_TARGET environment variable is required")
             
-        self.scan_agent = ScanAgent(self.openai_api_key)
+        self.scan_agent = ScanAgent(target=self.target, api_key=self.openai_api_key)
         self.console = Console()
         self.scanners = {
-            'domain': DomainFinder(),
-            'port': PortScanner(),
-            'subdomain': SubdomainFinder(),
-            'waf': WAFDetector(),
-            'fuzzer': URLFuzzer(),
-            'tech': TechDetector()
+            'domain': DomainFinder(target=self.target),
+            'port': PortScanner(target=self.target),
+            'subdomain': SubdomainFinder(target=self.target),
+            'waf': WAFDetector(target=self.target),
+            'fuzzer': URLFuzzer(target=self.target),
+            'tech': TechDetector(target=self.target)
         }
         self.results_history = []
         
@@ -38,7 +42,7 @@ class SecurityOrchestrator:
         if not scanner:
             return {'error': f'Scanner {scanner_name} not found'}
             
-        result = await scanner.scan(target)
+        result = await scanner.scan()
         return result
         
     async def scan_target(self, target: str, max_iterations: int = 5):
@@ -92,17 +96,36 @@ class SecurityOrchestrator:
             self.console.print(f"[bold green]Scan complete! Results saved to {results_file}[/bold green]")
             self.console.print(f"[bold green]Report saved to {report_file}[/bold green]")
 
+console = Console()
+
+def check_env():
+    # Print current working directory
+    console.print(f"[yellow]Current working directory: {os.getcwd()}[/yellow]")
+    
+    # Load env vars
+    load_dotenv()
+    
+    # Check if env vars are loaded
+    api_key = os.getenv('OPENAI_API_KEY')
+    target = os.getenv('SCAN_TARGET')
+    
+    console.print(f"[yellow]OPENAI_API_KEY exists: {bool(api_key)}[/yellow]")
+    console.print(f"[yellow]SCAN_TARGET exists: {bool(target)}[/yellow]")
+    
+    if not api_key or not target:
+        raise ValueError("OPENAI_API_KEY and SCAN_TARGET must be set in environment variables")
+    
+    return api_key, target
+
 async def main():
     try:
-        target = os.getenv('SCAN_TARGET')
-        if not target:
-            raise ValueError("SCAN_TARGET environment variable is required")
-            
+        api_key, target = check_env()
+        console.print(f"[green]Environment variables loaded successfully[/green]")
+        
         orchestrator = SecurityOrchestrator()
         await orchestrator.scan_target(target)
         
     except Exception as e:
-        console = Console()
         console.print(f"[bold red]Error: {str(e)}[/bold red]")
         exit(1)
 
