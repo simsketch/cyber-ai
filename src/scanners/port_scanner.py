@@ -1,45 +1,58 @@
 import nmap
-from typing import Dict, Any
-from .base_scanner import BaseScanner
+from scanners.base_scanner import BaseScanner
 
 class PortScanner(BaseScanner):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, target: str):
+        super().__init__(target)
         self.nm = nmap.PortScanner()
         
-    async def scan(self, target: str) -> Dict[str, Any]:
+    async def scan(self) -> dict:
         try:
-            # Run a SYN scan on common ports
-            self.nm.scan(target, arguments='-sS -sV -F --version-intensity 5')
+            # Scan top 100 ports with service version detection and OS detection
+            self.nm.scan(self.target, arguments='-sV -sS -O -F')
             
-            scan_results = {}
+            scan_info = self.nm.scaninfo()
+            hosts_info = []
+            
             for host in self.nm.all_hosts():
-                host_data = {
-                    'state': self.nm[host].state(),
-                    'ports': {}
+                host_info = {
+                    'ip': host,
+                    'status': self.nm[host].state(),
+                    'os_match': self.nm[host].get('osmatch', []),
+                    'ports': []
                 }
                 
                 for proto in self.nm[host].all_protocols():
                     ports = self.nm[host][proto].keys()
                     for port in ports:
-                        port_data = self.nm[host][proto][port]
-                        host_data['ports'][port] = {
-                            'state': port_data['state'],
-                            'service': port_data['name'],
-                            'version': port_data.get('version', ''),
-                            'product': port_data.get('product', '')
-                        }
-                        
-                scan_results[host] = host_data
+                        port_info = self.nm[host][proto][port]
+                        host_info['ports'].append({
+                            'port': port,
+                            'state': port_info['state'],
+                            'service': port_info['name'],
+                            'product': port_info.get('product', ''),
+                            'version': port_info.get('version', ''),
+                            'extrainfo': port_info.get('extrainfo', '')
+                        })
+                
+                hosts_info.append(host_info)
             
             self.results = {
-                'target': target,
-                'scan_results': scan_results
+                'target': self.target,
+                'scan_info': scan_info,
+                'hosts': hosts_info,
+                'attack_surface': {
+                    'total_open_ports': sum(len([p for p in host['ports'] if p['state'] == 'open']) 
+                                          for host in hosts_info),
+                    'services_running': len(set(p['service'] for host in hosts_info 
+                                              for p in host['ports'] if p['state'] == 'open'))
+                }
             }
+            
         except Exception as e:
             self.results = {
                 'error': str(e),
-                'target': target
+                'target': self.target
             }
             
         return self.results

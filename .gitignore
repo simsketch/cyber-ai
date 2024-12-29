@@ -36,3 +36,8 @@ data/scan_results/
 # OS
 .DS_Store
 Thumbs.db
+
+# Add these lines
+/src/data/*
+!data/.gitkeep
+.history

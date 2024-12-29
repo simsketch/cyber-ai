@@ -1,137 +1,132 @@
-import aiohttp
-import re
-from typing import Dict, Any
-from .base_scanner import BaseScanner
+import requests
+from scanners.base_scanner import BaseScanner
+from utils.url_helper import URLHelper
 
 class WAFDetector(BaseScanner):
-    def __init__(self):
-        super().__init__()
-        self.waf_signatures = {
-            'Cloudflare': [
-                'cloudflare-nginx',
-                'cloudflare',
-                '__cfduid',
-                'cf-ray'
-            ],
-            'AWS WAF': [
-                'x-amzn-RequestId',
-                'x-amz-cf-id',
-                'awselb'
-            ],
-            'Akamai': [
-                'akamai',
-                'ak_bmsc'
-            ],
-            'Imperva': [
-                'incap_ses',
-                'visid_incap',
-                'incap_visid_83'
-            ],
-            'Sucuri': [
-                'sucuri',
-                'x-sucuri-id'
-            ]
-        }
+    def __init__(self, target: str):
+        self.full_url, target_domain = URLHelper.normalize_url(target)
+        super().__init__(target_domain)
         
-    async def _check_headers(self, url: str) -> Dict[str, Any]:
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(url) as response:
-                    headers = dict(response.headers)
-                    cookies = response.cookies
-                    
-                    detected_wafs = []
-                    
-                    # Check headers and cookies against signatures
-                    all_values = [
-                        *[v.lower() for v in headers.values()],
-                        *[v.lower() for v in headers.keys()],
-                        *[c.key.lower() for c in cookies.values()],
-                        *[c.value.lower() for c in cookies.values()]
-                    ]
-                    
-                    for waf_name, signatures in self.waf_signatures.items():
-                        for sig in signatures:
-                            if any(sig.lower() in value for value in all_values):
-                                detected_wafs.append({
-                                    'name': waf_name,
-                                    'signature': sig,
-                                    'confidence': 'HIGH'
-                                })
-                                break
-                    
-                    return {
-                        'detected_wafs': detected_wafs,
-                        'headers': headers,
-                        'status_code': response.status
+    async def scan(self) -> dict:
+        try:
+            # WAF detection patterns that typically trigger WAFs
+            waf_detection_patterns = [
+                {
+                    'name': 'Generic XSS',
+                    'payload': '<script>alert(1)</script>',
+                    'headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                },
+                {
+                    'name': 'SQL Injection',
+                    'payload': "' OR '1'='1' --",
+                    'headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                },
+                {
+                    'name': 'Common WAF Headers',
+                    'payload': '',
+                    'headers': {
+                        'X-Forwarded-For': '127.0.0.1',
+                        'X-Remote-IP': '127.0.0.1',
+                        'X-Originating-IP': '127.0.0.1',
+                        'X-Remote-Addr': '127.0.0.1'
                     }
-            except Exception as e:
-                return {
-                    'error': str(e),
-                    'detected_wafs': []
                 }
-    
-    async def _check_behavior(self, url: str) -> Dict[str, Any]:
-        # Test with potentially malicious payloads to trigger WAF
-        test_payloads = [
-            "' OR '1'='1",
-            "<script>alert(1)</script>",
-            "../../../etc/passwd",
-            "/?param=../../etc/passwd"
-        ]
-        
-        results = []
-        base_status = None
-        
-        async with aiohttp.ClientSession() as session:
-            # First get baseline response
+            ]
+            
+            waf_indicators = {
+                'headers': [
+                    'x-waf',
+                    'x-firewall',
+                    'x-cdn',
+                    'server',
+                    'x-cache',
+                    'x-powered-by'
+                ],
+                'waf_names': [
+                    'cloudflare',
+                    'akamai',
+                    'aws',
+                    'cloudfront',
+                    'fastly',
+                    'sucuri',
+                    'incapsula',
+                    'f5',
+                    'nginx'
+                ]
+            }
+            
+            waf_detected = False
+            waf_details = []
+            
+            # Test normal request first
             try:
-                async with session.get(url) as response:
-                    base_status = response.status
-            except:
+                normal_response = requests.get(self.full_url, timeout=5)
+                # Check headers for WAF indicators
+                for header in normal_response.headers:
+                    header_lower = header.lower()
+                    value_lower = str(normal_response.headers[header]).lower()
+                    
+                    if header_lower in waf_indicators['headers']:
+                        for waf in waf_indicators['waf_names']:
+                            if waf in value_lower:
+                                waf_detected = True
+                                waf_details.append(f"WAF detected: {waf} (from {header})")
+            except requests.RequestException:
                 pass
             
-            # Test each payload
-            for payload in test_payloads:
+            # Test WAF detection patterns
+            test_results = []
+            for pattern in waf_detection_patterns:
                 try:
-                    test_url = f"{url}?test={payload}"
-                    async with session.get(test_url) as response:
-                        if response.status != base_status and response.status in [403, 406, 429, 503]:
-                            results.append({
-                                'payload': payload,
-                                'triggered_status': response.status,
-                                'base_status': base_status
-                            })
-                except Exception as e:
-                    results.append({
-                        'payload': payload,
-                        'error': str(e)
+                    if pattern['payload']:
+                        url = f"{self.full_url}?test={pattern['payload']}"
+                    else:
+                        url = self.full_url
+                        
+                    response = requests.get(
+                        url,
+                        headers=pattern['headers'],
+                        timeout=5,
+                        allow_redirects=False
+                    )
+                    
+                    is_blocked = response.status_code in [403, 406, 429, 501, 502]
+                    test_results.append({
+                        'test_name': pattern['name'],
+                        'blocked': is_blocked,
+                        'status_code': response.status_code
                     })
                     
-        return {
-            'behavior_tests': results,
-            'waf_likely': len([r for r in results if 'triggered_status' in r]) > 0
-        }
-    
-    async def scan(self, target: str) -> Dict[str, Any]:
-        if not target.startswith(('http://', 'https://')):
-            target = f'https://{target}'
-            
-        try:
-            header_results = await self._check_headers(target)
-            behavior_results = await self._check_behavior(target)
+                    if is_blocked:
+                        waf_detected = True
+                        waf_details.append(f"WAF detected: Blocked {pattern['name']}")
+                        
+                except requests.RequestException as e:
+                    test_results.append({
+                        'test_name': pattern['name'],
+                        'blocked': True,
+                        'error': str(e)
+                    })
             
             self.results = {
-                'target': target,
-                'header_analysis': header_results,
-                'behavior_analysis': behavior_results,
-                'waf_detected': bool(header_results.get('detected_wafs') or behavior_results.get('waf_likely')),
-                'confidence': 'HIGH' if header_results.get('detected_wafs') else 'MEDIUM' if behavior_results.get('waf_likely') else 'LOW'
+                'target': self.target,
+                'full_url': self.full_url,
+                'waf_detected': waf_detected,
+                'waf_details': waf_details,
+                'test_results': test_results,
+                'attack_surface': {
+                    'waf_effectiveness': sum(1 for test in test_results if test.get('blocked', False)) / len(test_results),
+                    'protection_level': 'HIGH' if waf_detected and all(test.get('blocked', False) for test in test_results)
+                                     else 'MEDIUM' if waf_detected
+                                     else 'LOW'
+                }
             }
+            
         except Exception as e:
             self.results = {
                 'error': str(e),
-                'target': target
+                'target': self.target,
+                'full_url': self.full_url
             }
             
         return self.results
