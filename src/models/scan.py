@@ -28,6 +28,7 @@ class Vulnerability(BaseModel):
 class Scan(Document):
     target: str
     status: ScanStatus
+    user_id: str  # Clerk user ID
     vulnerabilities: List[Vulnerability] = []
     total_vulnerabilities: int = 0
     started_at: datetime = datetime.utcnow()
@@ -41,8 +42,10 @@ class Scan(Document):
         indexes = [
             "status",
             "target",
+            "user_id",
             "started_at",
-            [("target", 1), ("started_at", -1)]
+            [("target", 1), ("started_at", -1)],
+            [("user_id", 1), ("started_at", -1)]
         ]
 
     class Config:

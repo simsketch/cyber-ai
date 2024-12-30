@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from db.connection import init_db
 from models.scan import Scan, ScanStatus, Vulnerability
 from models.user import User
-from models.report import Report
+from models.report import Report, ReportType
 
 from agents.scan_agent import ScanAgent
 from scanners.domain_finder import DomainFinder
@@ -59,7 +59,8 @@ async def start_scan(request: ScanRequest):
             target=request.target,
             status=ScanStatus.PENDING,
             scan_type=request.scan_type,
-            scan_options=request.scan_options
+            scan_options=request.scan_options,
+            user_id=request.user_id
         )
         await scan.insert()
         
@@ -78,7 +79,7 @@ async def start_scan(request: ScanRequest):
 async def get_scans(user_id: str):
     """Get all scans for a user"""
     try:
-        scans = await Scan.find_all().to_list()
+        scans = await Scan.find(Scan.user_id == user_id).sort(-Scan.started_at).to_list()
         return scans
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -123,29 +124,83 @@ async def run_scan(scan_id: str, target: str):
         orchestrator = SecurityOrchestrator(target)
         
         # Run each scanner
+        all_vulnerabilities = []
         for scanner_name in orchestrator.scan_order:
             result = await orchestrator.run_scan(scanner_name)
             
-            # Update vulnerabilities if found
-            if 'vulnerabilities' in result:
-                for vuln in result['vulnerabilities']:
-                    scan.vulnerabilities.append(
-                        Vulnerability(
-                            title=vuln['title'],
-                            description=vuln['description'],
-                            severity=vuln['severity'],
-                            cvss_score=vuln.get('cvss_score'),
-                            cve_id=vuln.get('cve_id'),
-                            remediation=vuln.get('remediation')
+            # Handle vulnerability scanner results
+            if scanner_name == 'vulnerability' and 'vulnerabilities' in result:
+                for vuln_type, vulns in result['vulnerabilities'].items():
+                    for vuln in vulns:
+                        severity = "high" if vuln['potentially_vulnerable'] else "medium"
+                        description = f"Found {vuln_type} vulnerability with payload: {vuln['payload']}"
+                        if vuln['get_test']['reflected']:
+                            description += f"\nReflected in GET request at {vuln['get_test']['url']}"
+                        if vuln['post_test']['reflected']:
+                            description += f"\nReflected in POST request at {vuln['post_test']['url']}"
+                        
+                        all_vulnerabilities.append(
+                            Vulnerability(
+                                title=f"Potential {vuln_type.upper()} Vulnerability",
+                                description=description,
+                                severity=severity,
+                                remediation=f"Review and sanitize inputs for {vuln_type} attacks"
+                            )
                         )
-                    )
-                scan.total_vulnerabilities = len(scan.vulnerabilities)
-                await scan.save()
+            
+            # Handle other scanner results
+            elif 'findings' in result:
+                for finding in result.get('findings', []):
+                    if isinstance(finding, dict):
+                        all_vulnerabilities.append(
+                            Vulnerability(
+                                title=finding.get('title', 'Unknown Finding'),
+                                description=finding.get('description', ''),
+                                severity=finding.get('severity', 'low'),
+                                remediation=finding.get('remediation', '')
+                            )
+                        )
+                    elif isinstance(finding, str):
+                        all_vulnerabilities.append(
+                            Vulnerability(
+                                title="Finding",
+                                description=finding,
+                                severity="low",
+                                remediation="Review and address the finding"
+                            )
+                        )
+        
+        # Update scan with all found vulnerabilities
+        scan.vulnerabilities = all_vulnerabilities
+        scan.total_vulnerabilities = len(all_vulnerabilities)
+        await scan.save()
         
         # Mark scan as completed
         scan.status = ScanStatus.COMPLETED
         scan.completed_at = datetime.utcnow()
         await scan.save()
+        
+        # Generate report
+        report = Report(
+            title=f"Vulnerability Scan Report - {target}",
+            type=ReportType.VULNERABILITY,
+            description=f"Automated vulnerability scan report for {target}",
+            data={
+                "scan_id": str(scan_id),
+                "target": target,
+                "total_vulnerabilities": scan.total_vulnerabilities,
+                "vulnerabilities": [vuln.dict() for vuln in scan.vulnerabilities],
+                "scan_duration": (scan.completed_at - scan.started_at).total_seconds(),
+                "findings_summary": {
+                    "high": len([v for v in scan.vulnerabilities if v.severity == "high"]),
+                    "medium": len([v for v in scan.vulnerabilities if v.severity == "medium"]),
+                    "low": len([v for v in scan.vulnerabilities if v.severity == "low"])
+                }
+            },
+            user_id=scan.user_id,
+            scan_ids=[str(scan_id)]
+        )
+        await report.insert()
         
     except Exception as e:
         # Update scan with error
@@ -225,6 +280,37 @@ class SecurityOrchestrator:
             json.dump(results, f, indent=2)
             
         return results
+
+@app.get("/api/reports")
+async def get_reports(user_id: str):
+    """Get all reports for a user"""
+    try:
+        reports = await Report.find(Report.user_id == user_id).sort(-Report.generated_at).to_list()
+        return reports
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/reports/{report_id}")
+async def get_report(report_id: str):
+    """Get report by ID"""
+    try:
+        report = await Report.get(report_id)
+        if not report:
+            raise HTTPException(status_code=404, detail="Report not found")
+        return report
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/scans/{scan_id}/report")
+async def get_scan_report(scan_id: str):
+    """Get report for a specific scan"""
+    try:
+        report = await Report.find_one(Report.scan_ids.contains(scan_id))
+        if not report:
+            raise HTTPException(status_code=404, detail="Report not found")
+        return report
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
