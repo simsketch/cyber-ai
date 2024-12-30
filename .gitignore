@@ -41,3 +41,5 @@ Thumbs.db
 /src/data/*
 !data/.gitkeep
 .history
+node_modules/
+docs/node_modules

@@ -1,5 +1,8 @@
 # Cyber AI - Security Scanner
 
+TODO: Mock data switch on/off for demo purposes
+
+
 A modern security scanning platform with an AI-powered analysis engine. Features a beautiful Next.js frontend and a powerful Python backend.
 
 ## Features
