@@ -1,0 +1,224 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #2e8555;
+  --ifm-color-primary-dark: #29784c;
+  --ifm-color-primary-darker: #277148;
+  --ifm-color-primary-darkest: #205d3b;
+  --ifm-color-primary-light: #33925d;
+  --ifm-color-primary-lighter: #359962;
+  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Custom variables */
+  --custom-border-radius: 8px;
+  --custom-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  --custom-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #25c2a0;
+  --ifm-color-primary-dark: #21af90;
+  --ifm-color-primary-darker: #1fa588;
+  --ifm-color-primary-darkest: #1a8870;
+  --ifm-color-primary-light: #29d5b0;
+  --ifm-color-primary-lighter: #32d8b4;
+  --ifm-color-primary-lightest: #4fddbf;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+
+  /* Custom dark mode variables */
+  --custom-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom styles */
+.navbar {
+  box-shadow: var(--custom-box-shadow);
+}
+
+.navbar__brand {
+  font-family: var(--custom-font-family);
+  font-weight: 600;
+}
+
+.hero {
+  background: linear-gradient(45deg, var(--ifm-color-primary-darkest), var(--ifm-color-primary));
+  color: white;
+}
+
+.hero__subtitle {
+  margin-bottom: 2rem;
+}
+
+.button {
+  border-radius: var(--custom-border-radius);
+  transition: all 0.2s ease-in-out;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+}
+
+/* Code blocks */
+.prism-code {
+  border-radius: var(--custom-border-radius);
+  margin-bottom: 1rem;
+}
+
+/* Tables */
+table {
+  display: table;
+  width: 100%;
+  margin-bottom: 1rem;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+th {
+  background-color: var(--ifm-color-emphasis-100);
+  font-weight: 600;
+}
+
+/* Cards */
+.card {
+  border-radius: var(--custom-border-radius);
+  box-shadow: var(--custom-box-shadow);
+  transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar */
+.menu {
+  font-family: var(--custom-font-family);
+}
+
+.menu__link {
+  border-radius: var(--custom-border-radius);
+}
+
+.menu__link--active {
+  font-weight: 600;
+}
+
+/* Footer */
+.footer {
+  background-color: var(--ifm-color-emphasis-100);
+  padding: 3rem 0;
+}
+
+.footer__link-item {
+  color: var(--ifm-color-emphasis-700);
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+/* Responsive design */
+@media screen and (max-width: 996px) {
+  .hero {
+    padding: 2rem;
+  }
+
+  .hero__title {
+    font-size: 2rem;
+  }
+
+  .hero__subtitle {
+    font-size: 1.2rem;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero__title,
+.hero__subtitle,
+.hero .button {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.hero__subtitle {
+  animation-delay: 0.2s;
+}
+
+.hero .button {
+  animation-delay: 0.4s;
+}
+
+/* Documentation content */
+.markdown {
+  font-family: var(--custom-font-family);
+  line-height: 1.7;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.markdown p {
+  margin-bottom: 1.5rem;
+}
+
+.markdown code {
+  background-color: var(--ifm-color-emphasis-100);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+}
+
+/* Search */
+.navbar__search {
+  padding: 0.5rem;
+}
+
+.navbar__search-input {
+  border-radius: var(--custom-border-radius);
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+/* Tabs */
+.tabs {
+  border-radius: var(--custom-border-radius);
+  margin-bottom: 1rem;
+}
+
+.tabs__item {
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+}
+
+.tabs__item--active {
+  border-bottom: 2px solid var(--ifm-color-primary);
+}
