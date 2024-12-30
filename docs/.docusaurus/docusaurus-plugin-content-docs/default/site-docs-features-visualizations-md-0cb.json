@@ -1,0 +1,27 @@
+{
+  "id": "features/visualizations",
+  "title": "Interactive Visualizations",
+  "description": "Cyber AI provides powerful interactive visualizations to help you understand your security posture and analyze potential threats.",
+  "source": "@site/docs/features/visualizations.md",
+  "sourceDirName": "features",
+  "slug": "/features/visualizations",
+  "permalink": "/docs/features/visualizations",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/features/visualizations.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Security Scanning",
+    "permalink": "/docs/features/scanning"
+  },
+  "next": {
+    "title": "Quick Start Guide",
+    "permalink": "/docs/getting-started/quickstart"
+  }
+}

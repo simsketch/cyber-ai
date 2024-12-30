@@ -1,0 +1,16 @@
+node_modules/*
+docs/node_modules/*
+docs/.docusaurus/*
+docs/.history/*
+docs/.next/*
+docs/.vitepress/*
+docs/.vitepress/cache/*
+docs/.vitepress/data/*
+docs/.vitepress/dist/*
+docs/.vitepress/public/*
+docs/.vitepress/src/*
+docs/.vitepress/static/*
+docs/.vitepress/theme/*
+docs/.vitepress/types/*
+docs/.vitepress/types/*
+docs/.vitepress/utils/*

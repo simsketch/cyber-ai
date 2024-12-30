@@ -7,6 +7,9 @@ import json
 from rich.console import Console
 from rich.progress import Progress
 from rich.table import Table
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from agents.scan_agent import ScanAgent
 from scanners.domain_finder import DomainFinder
@@ -17,16 +20,29 @@ from scanners.url_fuzzer import URLFuzzer
 from scanners.tech_detector import TechDetector
 from scanners.vulnerability_scanner import VulnerabilityScanner
 
+app = FastAPI()
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class ScanRequest(BaseModel):
+    target: str
+    scanners: List[str] = []
+
 class SecurityOrchestrator:
-    def __init__(self):
+    def __init__(self, target: str):
         load_dotenv()
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.target = os.getenv('SCAN_TARGET')
+        self.target = target
         
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
-        if not self.target:
-            raise ValueError("SCAN_TARGET environment variable is required")
             
         self.scan_agent = ScanAgent(target=self.target, api_key=self.openai_api_key)
         self.console = Console()
@@ -63,134 +79,62 @@ class SecurityOrchestrator:
         result = await scanner.scan()
         return result
         
-    def _print_summary_table(self, results: Dict[str, Any]):
-        table = Table(title=f"Security Scan Summary for {self.target}")
-        table.add_column("Scanner", style="cyan")
-        table.add_column("Findings", style="magenta")
-        table.add_column("Risk Level", style="red")
+    async def scan_target(self, selected_scanners: List[str] = None):
+        scan_order = selected_scanners if selected_scanners else self.scan_order
+        results = []
         
-        for result in results:
-            scanner_type = result['scan_type']
-            if 'error' in result['results']:
-                table.add_row(
-                    scanner_type,
-                    f"Error: {result['results']['error']}",
-                    "N/A"
-                )
+        for scanner_name in scan_order:
+            if scanner_name not in self.scanners:
                 continue
                 
-            findings = []
-            risk_level = result['results'].get('attack_surface', {}).get('risk_level', 'LOW')
-            
-            if scanner_type == 'domain':
-                findings.append(f"IPs: {result['results']['attack_surface']['total_ips']}")
-                findings.append(f"Nameservers: {result['results']['attack_surface']['total_nameservers']}")
-            elif scanner_type == 'subdomain':
-                findings.append(f"Subdomains: {result['results']['attack_surface']['total_subdomains']}")
-                if result['results']['zone_transfer_vulnerable']:
-                    findings.append("Zone Transfer Vulnerable!")
-            elif scanner_type == 'port':
-                findings.append(f"Open Ports: {result['results']['attack_surface']['total_open_ports']}")
-                findings.append(f"Services: {result['results']['attack_surface']['services_running']}")
-            elif scanner_type == 'tech':
-                missing_headers = result['results']['attack_surface']['missing_security_headers']
-                findings.append(f"Missing Security Headers: {len(missing_headers)}")
-                findings.append(f"Insecure Cookies: {result['results']['attack_surface']['insecure_cookies']}")
-            elif scanner_type == 'waf':
-                findings.append(f"WAF Detected: {result['results']['waf_detected']}")
-                findings.append(f"Effectiveness: {result['results']['attack_surface']['waf_effectiveness']:.2%}")
-            elif scanner_type == 'fuzzer':
-                findings.append(f"Sensitive Files: {result['results']['attack_surface']['sensitive_file_count']}")
-                findings.append(f"Backup Files: {result['results']['attack_surface']['backup_file_count']}")
-            elif scanner_type == 'vulnerability':
-                findings.append(f"Vulnerabilities: {result['results']['attack_surface']['total_vulnerabilities']}")
-                findings.append(f"Types: {', '.join(result['results']['attack_surface']['vulnerability_types'])}")
-            
-            table.add_row(
-                scanner_type,
-                "\n".join(findings),
-                risk_level
-            )
+            result = await self.run_scan(scanner_name)
+            results.append({
+                'scan_type': scanner_name,
+                'timestamp': datetime.now().isoformat(),
+                'results': result
+            })
         
-        self.console.print(table)
+        # Save results
+        output_dir = 'data/scan_results'
+        os.makedirs(output_dir, exist_ok=True)
         
-    async def scan_target(self):
-        self.console.print(f"[bold green]Starting comprehensive security scan for target: {self.target}[/bold green]")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        results_file = f"{output_dir}/scan_{timestamp}.json"
         
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Running scans...", total=len(self.scan_order))
+        with open(results_file, 'w') as f:
+            json.dump(results, f, indent=2)
             
-            for scanner_name in self.scan_order:
-                progress.update(task, advance=1)
-                self.console.print(f"[yellow]Running {scanner_name} scan...[/yellow]")
-                
-                result = await self.run_scan(scanner_name)
-                self.results_history.append({
-                    'scan_type': scanner_name,
-                    'timestamp': datetime.now().isoformat(),
-                    'results': result
-                })
-                
-                # Check for high-risk findings
-                if 'attack_surface' in result and result['attack_surface'].get('risk_level') == 'HIGH':
-                    self.console.print(f"[bold red]High risk issues detected in {scanner_name} scan![/bold red]")
-            
-            # Generate summary and reports
-            self.console.print("\n[green]Scan complete! Generating reports...[/green]")
-            self._print_summary_table(self.results_history)
-            
-            # Generate detailed report
-            report = await self.scan_agent.generate_report(self.results_history)
-            
-            # Save results
-            output_dir = 'data/scan_results'
-            os.makedirs(output_dir, exist_ok=True)
-            
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            results_file = f"{output_dir}/scan_{timestamp}.json"
-            report_file = f"{output_dir}/report_{timestamp}.md"
-            
-            with open(results_file, 'w') as f:
-                json.dump(self.results_history, f, indent=2)
-                
-            with open(report_file, 'w') as f:
-                f.write(report)
-                
-            self.console.print(f"[bold green]Results saved to {results_file}[/bold green]")
-            self.console.print(f"[bold green]Report saved to {report_file}[/bold green]")
+        return results
 
-console = Console()
-
-def check_env():
-    # Print current working directory
-    console.print(f"[yellow]Current working directory: {os.getcwd()}[/yellow]")
-    
-    # Load env vars
-    load_dotenv()
-    
-    # Check if env vars are loaded
-    api_key = os.getenv('OPENAI_API_KEY')
-    target = os.getenv('SCAN_TARGET')
-    
-    console.print(f"[yellow]OPENAI_API_KEY exists: {bool(api_key)}[/yellow]")
-    console.print(f"[yellow]SCAN_TARGET exists: {bool(target)}[/yellow]")
-    
-    if not api_key or not target:
-        raise ValueError("OPENAI_API_KEY and SCAN_TARGET must be set in environment variables")
-    
-    return api_key, target
-
-async def main():
+@app.post("/api/scan")
+async def start_scan(request: ScanRequest):
     try:
-        api_key, target = check_env()
-        console.print(f"[green]Environment variables loaded successfully[/green]")
-        
-        orchestrator = SecurityOrchestrator()
-        await orchestrator.scan_target()
-        
+        orchestrator = SecurityOrchestrator(target=request.target)
+        results = await orchestrator.scan_target(request.scanners)
+        return {"status": "success", "results": results}
     except Exception as e:
-        console.print(f"[bold red]Error: {str(e)}[/bold red]")
-        exit(1)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/scans")
+async def get_scans():
+    try:
+        output_dir = 'data/scan_results'
+        if not os.path.exists(output_dir):
+            return {"scans": []}
+            
+        scans = []
+        for file in os.listdir(output_dir):
+            if file.endswith('.json'):
+                with open(os.path.join(output_dir, file), 'r') as f:
+                    scan_data = json.load(f)
+                    scans.append({
+                        "id": file.replace('scan_', '').replace('.json', ''),
+                        "results": scan_data
+                    })
+        return {"scans": scans}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
