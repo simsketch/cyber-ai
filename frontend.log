@@ -6,17 +6,14 @@
    - Local:        http://localhost:3000
    - Environments: .env
 
- ✓ Ready in 1849ms
- ○ Compiling /src/middleware ...
- ✓ Compiled /src/middleware in 666ms (282 modules)
- ○ Compiling / ...
- ✓ Compiled / in 3.7s (979 modules)
- ✓ Compiled in 208ms (433 modules)
- ○ Compiling /dashboard ...
- ✓ Compiled /dashboard in 1763ms (2424 modules)
- ○ Compiling /favicon.ico ...
- ✓ Compiled /favicon.ico in 1863ms (1308 modules)
+ ✓ Ready in 2.2s
+ ✓ Compiled /src/middleware in 500ms (282 modules)
  ○ Compiling /scans ...
- ✓ Compiled /scans in 830ms (2503 modules)
- ✓ Compiled in 1507ms (2517 modules)
- ✓ Compiled in 1352ms (1857 modules)
+ ✓ Compiled /scans in 4.1s (1228 modules)
+ ✓ Compiled in 458ms (556 modules)
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 2.2s (700 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 1768ms (1250 modules)
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1560ms (2507 modules)

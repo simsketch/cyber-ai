@@ -1,6 +1,6 @@
 INFO:     Will watch for changes in these directories: ['/Users/simsketch/repos/cyber-ai/src']
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [39224] using WatchFiles
-INFO:     Started server process [39232]
+INFO:     Started reloader process [42093] using WatchFiles
+INFO:     Started server process [42102]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
