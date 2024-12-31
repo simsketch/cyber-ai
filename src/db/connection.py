@@ -8,14 +8,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://admin:password@localhost:27017")
+MONGODB_URI = os.getenv("MONGODB_URL")
+if not MONGODB_URI:
+    raise ValueError("MONGODB_URL environment variable is not set")
+
 DB_NAME = os.getenv("DB_NAME", "cyber_ai")
 
 async def init_db():
     """Initialize database connection"""
     try:
         client = motor.motor_asyncio.AsyncIOMotorClient(
-            MONGODB_URL,
+            MONGODB_URI,
             serverSelectionTimeoutMS=5000
         )
         # Verify connection

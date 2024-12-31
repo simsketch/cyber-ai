@@ -121,12 +121,21 @@ async def get_scans(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/scans/{scan_id}")
-async def get_scan(scan_id: str):
+async def get_scan(scan_id: str, request: Request):
     """Get scan by ID"""
     try:
+        user_id = request.headers.get('X-User-ID')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not provided")
+
         scan = await Scan.get(scan_id)
         if not scan:
             raise HTTPException(status_code=404, detail="Scan not found")
+        
+        # Check if scan belongs to user
+        if scan.user_id != user_id and scan.user_id != "default-user":
+            raise HTTPException(status_code=403, detail="Not authorized to access this scan")
+            
         return scan
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -373,23 +382,41 @@ async def get_reports(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/reports/{report_id}")
-async def get_report(report_id: str):
+async def get_report(report_id: str, request: Request):
     """Get report by ID"""
     try:
+        user_id = request.headers.get('X-User-ID')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not provided")
+
         report = await Report.get(report_id)
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
+            
+        # Check if report belongs to user
+        if report.user_id != user_id and report.user_id != "default-user":
+            raise HTTPException(status_code=403, detail="Not authorized to access this report")
+            
         return report
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/scans/{scan_id}/report")
-async def get_scan_report(scan_id: str):
+async def get_scan_report(scan_id: str, request: Request):
     """Get report for a specific scan"""
     try:
+        user_id = request.headers.get('X-User-ID')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not provided")
+
         report = await Report.find_one(Report.scan_ids.contains(scan_id))
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
+            
+        # Check if report belongs to user
+        if report.user_id != user_id and report.user_id != "default-user":
+            raise HTTPException(status_code=403, detail="Not authorized to access this report")
+            
         return report
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

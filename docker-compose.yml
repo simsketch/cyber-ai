@@ -1,36 +1,76 @@
 version: '3.8'
 
 services:
-  mongodb:
-    image: mongo:latest
-    container_name: cyber-ai-mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: cyber_ai
+  scanner:
+    build: .
+    container_name: cyber-ai-scanner
     ports:
-      - "27017:27017"
+      - "8000:8000"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - cyber-ai-network
+    environment:
+      - SSL_CERT_DIR=/etc/ssl/certs
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+      - MONGODB_URL=${MONGODB_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - mongodb_data:/data/db
-    networks:
-      - cyber-ai-network
+      - ./data:/app/data
 
-  mongo-express:
-    image: mongo-express:latest
-    container_name: cyber-ai-mongo-express
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: password
-      ME_CONFIG_MONGODB_URL: mongodb://admin:password@mongodb:27017/
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cyber-ai-frontend
     ports:
-      - "8081:8081"
-    depends_on:
-      - mongodb
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
     networks:
       - cyber-ai-network
+    depends_on:
+      - scanner
 
-volumes:
-  mongodb_data:
+  # Local MongoDB setup (disabled by default - uncomment for local development in VPC)
+  # mongodb:
+  #   image: mongo:latest
+  #   container_name: cyber-ai-mongodb
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: admin
+  #     MONGO_INITDB_ROOT_PASSWORD: password
+  #     MONGO_INITDB_DATABASE: cyber_ai
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   networks:
+  #     - cyber-ai-network
+
+  # mongo-express:
+  #   image: mongo-express:latest
+  #   container_name: cyber-ai-mongo-express
+  #   environment:
+  #     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+  #     ME_CONFIG_MONGODB_ADMINPASSWORD: password
+  #     ME_CONFIG_MONGODB_URL: mongodb://admin:password@mongodb:27017/
+  #   ports:
+  #     - "8081:8081"
+  #   depends_on:
+  #     - mongodb
+  #   networks:
+  #     - cyber-ai-network
+
+# Uncomment for local MongoDB setup
+# volumes:
+#   mongodb_data:
 
 networks:
   cyber-ai-network:
