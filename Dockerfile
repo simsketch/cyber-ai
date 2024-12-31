@@ -21,7 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     libcurl4-openssl-dev \
     curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Update CA certificates
+RUN update-ca-certificates
 
 # Create a non-root user named "scanner"
 RUN useradd -ms /bin/bash scanner
@@ -37,18 +41,18 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Upgrade pip (pin to a specific version if desired)
 RUN pip3 install --no-cache-dir --upgrade pip==23.3.2
 
-# Copy your Python requirements
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
-
-# Copy application source code
+# Copy application source code first (includes requirements.txt)
 COPY src/ ./src/
 COPY .env .
 
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r src/requirements.txt
+
 # Create a data directory and fix ownership for the non-root user
 RUN mkdir -p ./data/scan_results && chown -R scanner:scanner ./data
+
+# Create cache directory with proper permissions
+RUN mkdir -p ./.cache && chown -R scanner:scanner ./.cache
 
 # Give scanner user access to .env
 RUN chown scanner:scanner .env
@@ -57,7 +61,8 @@ RUN chown scanner:scanner .env
 USER scanner
 
 # Set environment variables
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-# Default entrypoint to run your Python script
-ENTRYPOINT ["python3", "src/main.py"]
+# Default entrypoint to run the FastAPI server
+CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
