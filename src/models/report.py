@@ -15,7 +15,7 @@ class Report(Document):
     type: ReportType
     description: str
     data: Dict[str, Any]
-    markdown_content: Optional[str]
+    markdown_content: Optional[str] = None
     user_id: str
     scan_ids: List[str]
     generated_at: datetime = Field(default_factory=datetime.utcnow)

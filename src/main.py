@@ -50,11 +50,12 @@ class ScanRequest(BaseModel):
     scan_type: str = "network"
     scan_options: dict = {}
 
-@app.post("/api/scans")
+@app.post("/api/v1/scans")
 async def start_scan(request: Request, scan_request: ScanRequest):
     """Start a new scan"""
     try:
-        user_id = request.headers.get('X-User-ID')
+        # Get user_id from header first, fallback to request body
+        user_id = request.headers.get('X-User-ID') or scan_request.user_id
         if not user_id:
             raise HTTPException(status_code=401, detail="User ID not provided")
 
@@ -64,7 +65,7 @@ async def start_scan(request: Request, scan_request: ScanRequest):
             status=ScanStatus.PENDING,
             scan_type=scan_request.scan_type,
             scan_options=scan_request.scan_options,
-            user_id=user_id
+            user_id=user_id  # Use the user_id we got from header or body
         )
         await scan.insert()
         
@@ -77,9 +78,10 @@ async def start_scan(request: Request, scan_request: ScanRequest):
             "target": scan.target
         }
     except Exception as e:
+        print(f"Error starting scan: {e}")  # Add debug logging
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/scans")
+@app.get("/api/v1/scans")
 async def get_scans(request: Request):
     """Get all scans for a user"""
     try:
@@ -118,7 +120,7 @@ async def get_scans(request: Request):
         print(f"Error fetching scans: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/scans/{scan_id}")
+@app.get("/api/v1/scans/{scan_id}")
 async def get_scan(scan_id: str):
     """Get scan by ID"""
     try:
@@ -129,7 +131,7 @@ async def get_scan(scan_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/scans/{scan_id}/cancel")
+@app.post("/api/v1/scans/{scan_id}/cancel")
 async def cancel_scan(scan_id: str):
     """Cancel a running scan"""
     try:
@@ -333,43 +335,44 @@ class SecurityOrchestrator:
             
         return results
 
-@app.get("/api/reports")
+@app.get("/api/v1/reports")
 async def get_reports(request: Request):
     """Get all reports for a user"""
     try:
-        # Get user_id from header
         user_id = request.headers.get('X-User-ID')
         if not user_id:
             raise HTTPException(status_code=401, detail="User ID not provided")
 
-        reports = await Report.find(Report.user_id == user_id).sort(-Report.generated_at).to_list()
+        reports = await Report.find(
+            {
+                "$or": [
+                    {"user_id": user_id},
+                    {"user_id": "default-user"}
+                ]
+            }
+        ).sort(-Report.generated_at).to_list()
         
-        # Transform the reports to match the frontend expected format
+        print(f"Found {len(reports)} reports for user {user_id}")
+        
+        # Transform reports to ensure all required fields exist
         transformed_reports = []
         for report in reports:
             transformed = {
                 "_id": str(report.id),
                 "scan_ids": report.scan_ids,
                 "generated_at": report.generated_at.isoformat() if report.generated_at else None,
-                "status": "completed",
-                "data": {
-                    "target": report.data.get("target", ""),
-                    "total_vulnerabilities": report.data.get("total_vulnerabilities", 0),
-                    "findings_summary": report.data.get("findings_summary", {
-                        "high": 0,
-                        "medium": 0,
-                        "low": 0
-                    })
-                }
+                "user_id": report.user_id,
+                "data": report.data or {},
+                "markdown_content": report.markdown_content or ""  # Provide empty string if None
             }
             transformed_reports.append(transformed)
-            
+        
         return transformed_reports
     except Exception as e:
         print(f"Error in get_reports: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/reports/{report_id}")
+@app.get("/api/v1/reports/{report_id}")
 async def get_report(report_id: str):
     """Get report by ID"""
     try:
@@ -380,7 +383,7 @@ async def get_report(report_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/scans/{scan_id}/report")
+@app.get("/api/v1/scans/{scan_id}/report")
 async def get_scan_report(scan_id: str):
     """Get report for a specific scan"""
     try:
