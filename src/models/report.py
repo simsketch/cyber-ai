@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from beanie import Document, Link
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from enum import Enum
 
 class ReportType(str, Enum):
@@ -13,12 +13,12 @@ class ReportType(str, Enum):
 class Report(Document):
     title: str
     type: ReportType
-    description: Optional[str] = None
-    generated_at: datetime = datetime.utcnow()
-    data: dict = {}
-    user_id: str  # Clerk user ID
-    scan_ids: List[str] = []  # References to related scans
-    tags: List[str] = []
+    description: str
+    data: Dict[str, Any]
+    markdown_content: Optional[str]
+    user_id: str
+    scan_ids: List[str]
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
     
     class Settings:
         name = "reports"

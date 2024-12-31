@@ -7,7 +7,7 @@ import json
 from rich.console import Console
 from rich.progress import Progress
 from rich.table import Table
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from db.connection import init_db
@@ -51,21 +51,25 @@ class ScanRequest(BaseModel):
     scan_options: dict = {}
 
 @app.post("/api/scans")
-async def start_scan(request: ScanRequest):
+async def start_scan(request: Request, scan_request: ScanRequest):
     """Start a new scan"""
     try:
+        user_id = request.headers.get('X-User-ID')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not provided")
+
         # Create new scan document
         scan = Scan(
-            target=request.target,
+            target=scan_request.target,
             status=ScanStatus.PENDING,
-            scan_type=request.scan_type,
-            scan_options=request.scan_options,
-            user_id=request.user_id
+            scan_type=scan_request.scan_type,
+            scan_options=scan_request.scan_options,
+            user_id=user_id
         )
         await scan.insert()
         
         # Start scan in background
-        asyncio.create_task(run_scan(scan.id, request.target))
+        asyncio.create_task(run_scan(scan.id, scan_request.target, user_id))
         
         return {
             "id": str(scan.id),
@@ -76,12 +80,42 @@ async def start_scan(request: ScanRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/scans")
-async def get_scans(user_id: str):
+async def get_scans(request: Request):
     """Get all scans for a user"""
     try:
-        scans = await Scan.find(Scan.user_id == user_id).sort(-Scan.started_at).to_list()
-        return scans
+        user_id = request.headers.get('X-User-ID')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not provided")
+            
+        print(f"Received request for scans with user_id: {user_id}")  # Debug log
+        scans = await Scan.find(
+            {
+                "$or": [
+                    {"user_id": user_id},
+                    {"user_id": "default-user"}  # Include default user reports for development
+                ]
+            }
+        ).sort(-Scan.started_at).to_list()
+        print(f"Found {len(scans)} scans")  # Debug log
+        
+        return [
+            {
+                "id": str(scan.id),
+                "target": scan.target,
+                "status": scan.status,
+                "user_id": scan.user_id,
+                "vulnerabilities": [vuln.dict() for vuln in scan.vulnerabilities],
+                "total_vulnerabilities": scan.total_vulnerabilities,
+                "started_at": scan.started_at.isoformat() if scan.started_at else None,
+                "completed_at": scan.completed_at.isoformat() if scan.completed_at else None,
+                "error": scan.error,
+                "scan_type": scan.scan_type,
+                "scan_options": scan.scan_options
+            }
+            for scan in scans
+        ]
     except Exception as e:
+        print(f"Error fetching scans: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/scans/{scan_id}")
@@ -112,7 +146,7 @@ async def cancel_scan(scan_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def run_scan(scan_id: str, target: str):
+async def run_scan(scan_id: str, target: str, user_id: str):
     """Run scan in background"""
     try:
         # Update scan status
@@ -180,7 +214,24 @@ async def run_scan(scan_id: str, target: str):
         scan.completed_at = datetime.utcnow()
         await scan.save()
         
-        # Generate report
+        # Before passing to generate_report, convert vulnerabilities to dicts
+        vulnerabilities_dict = [
+            {
+                "title": vuln.title,
+                "description": vuln.description,
+                "severity": vuln.severity,
+                "remediation": vuln.remediation,
+                "cvss_score": vuln.cvss_score if hasattr(vuln, 'cvss_score') else None,
+                "cve_id": vuln.cve_id if hasattr(vuln, 'cve_id') else None,
+            }
+            for vuln in all_vulnerabilities
+        ]
+        
+        # Generate markdown report using LLM with dict version
+        scan_agent = ScanAgent(target=target, api_key=os.getenv('OPENAI_API_KEY'))
+        markdown_report = await scan_agent.generate_report(vulnerabilities_dict)
+        
+        # Create report with markdown content
         report = Report(
             title=f"Vulnerability Scan Report - {target}",
             type=ReportType.VULNERABILITY,
@@ -197,7 +248,8 @@ async def run_scan(scan_id: str, target: str):
                     "low": len([v for v in scan.vulnerabilities if v.severity == "low"])
                 }
             },
-            user_id=scan.user_id,
+            markdown_content=markdown_report,
+            user_id=user_id,
             scan_ids=[str(scan_id)]
         )
         await report.insert()
@@ -282,12 +334,39 @@ class SecurityOrchestrator:
         return results
 
 @app.get("/api/reports")
-async def get_reports(user_id: str):
+async def get_reports(request: Request):
     """Get all reports for a user"""
     try:
+        # Get user_id from header
+        user_id = request.headers.get('X-User-ID')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not provided")
+
         reports = await Report.find(Report.user_id == user_id).sort(-Report.generated_at).to_list()
-        return reports
+        
+        # Transform the reports to match the frontend expected format
+        transformed_reports = []
+        for report in reports:
+            transformed = {
+                "_id": str(report.id),
+                "scan_ids": report.scan_ids,
+                "generated_at": report.generated_at.isoformat() if report.generated_at else None,
+                "status": "completed",
+                "data": {
+                    "target": report.data.get("target", ""),
+                    "total_vulnerabilities": report.data.get("total_vulnerabilities", 0),
+                    "findings_summary": report.data.get("findings_summary", {
+                        "high": 0,
+                        "medium": 0,
+                        "low": 0
+                    })
+                }
+            }
+            transformed_reports.append(transformed)
+            
+        return transformed_reports
     except Exception as e:
+        print(f"Error in get_reports: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/reports/{report_id}")

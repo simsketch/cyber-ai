@@ -40,6 +40,6 @@ Thumbs.db
 # Add these lines
 /src/data/*
 !data/.gitkeep
-.history
+.history/*
 node_modules/
 docs/node_modules

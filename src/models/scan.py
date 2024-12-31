@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 from beanie import Document, Link
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from enum import Enum
 
 class ScanStatus(str, Enum):
@@ -20,10 +20,20 @@ class VulnerabilitySeverity(str, Enum):
 class Vulnerability(BaseModel):
     title: str
     description: str
-    severity: VulnerabilitySeverity
+    severity: str
+    remediation: Optional[str] = None
     cvss_score: Optional[float] = None
     cve_id: Optional[str] = None
-    remediation: Optional[str] = None
+
+    def dict(self, *args, **kwargs):
+        return {
+            "title": self.title,
+            "description": self.description,
+            "severity": self.severity,
+            "remediation": self.remediation,
+            "cvss_score": self.cvss_score,
+            "cve_id": self.cve_id
+        }
 
 class Scan(Document):
     target: str
@@ -51,4 +61,11 @@ class Scan(Document):
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
-        } 
+        }
+        
+    def dict(self, *args, **kwargs):
+        # Get the default dict representation
+        d = super().dict(*args, **kwargs)
+        # Convert ObjectId to string
+        d["id"] = str(self.id)
+        return d 
