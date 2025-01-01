@@ -212,14 +212,16 @@ class WAFDetector(BaseScanner):
                                      'MEDIUM' if detected_wafs == 1 else 'LOW',
                     'bypass_potential': 'LOW' if detected_wafs > 1 else
                                      'MEDIUM' if detected_wafs == 1 else 'HIGH'
-                }
+                },
+                'notify': True
             }
             
         except Exception as e:
             print(f"Error in WAF detection: {str(e)}")
             self.results = {
                 'error': str(e),
-                'target': self.target
+                'target': self.target,
+                'notify': True
             }
             
         return self.results

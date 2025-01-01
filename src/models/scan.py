@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from enum import Enum
 
 class ScanStatus(str, Enum):
-    PENDING = "pending"
+    QUEUED = "queued"
     IN_PROGRESS = "in-progress"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -41,11 +41,13 @@ class Scan(Document):
     user_id: str  # Clerk user ID
     vulnerabilities: List[Vulnerability] = []
     total_vulnerabilities: int = 0
-    started_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     error: Optional[str] = None
     scan_type: str = "network"
     scan_options: dict = {}
+    progress: int = 0
 
     class Settings:
         name = "scans"
@@ -53,9 +55,9 @@ class Scan(Document):
             "status",
             "target",
             "user_id",
-            "started_at",
-            [("target", 1), ("started_at", -1)],
-            [("user_id", 1), ("started_at", -1)]
+            "created_at",
+            [("target", 1), ("created_at", -1)],
+            [("user_id", 1), ("created_at", -1)]
         ]
 
     class Config:

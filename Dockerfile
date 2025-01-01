@@ -7,10 +7,10 @@ FROM ubuntu:22.04
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
+    python3.10 \
     python3-pip \
     nmap \
-    dnsutils \ 
+    dnsutils \
     git \
     gcc \
     python3-dev \
@@ -27,42 +27,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Update CA certificates
 RUN update-ca-certificates
 
-# Create a non-root user named "scanner"
+# Create a non-root user
 RUN useradd -ms /bin/bash scanner
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Create and activate a Python virtual environment
+# Create and activate virtual environment
 ENV VIRTUAL_ENV=/app/venv
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# Upgrade pip (pin to a specific version if desired)
+# Upgrade pip
 RUN pip3 install --no-cache-dir --upgrade pip==23.3.2
 
-# Copy application source code first (includes requirements.txt)
+# Copy application files
 COPY src/ ./src/
-COPY .env .
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir -r src/requirements.txt
 
-# Create a data directory and fix ownership for the non-root user
+# Create data directory and set permissions
 RUN mkdir -p ./data/scan_results && chown -R scanner:scanner ./data
-
-# Create cache directory with proper permissions
 RUN mkdir -p ./.cache && chown -R scanner:scanner ./.cache
-
-# Give scanner user access to .env
-RUN chown scanner:scanner .env
+RUN chown -R scanner:scanner ./src
 
 # Switch to non-root user
 USER scanner
 
 # Set environment variables
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH="/app/src:$PYTHONPATH"
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-# Default entrypoint to run the FastAPI server
-CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -4,12 +4,18 @@ import aiohttp
 import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
+import logging
 
 class CVECache:
-    def __init__(self, cache_dir: str = ".cache"):
-        self.cache_dir = Path(cache_dir)
+    def __init__(self, cache_dir: str = None):
+        # Use environment variable or fallback to /tmp
+        self.cache_dir = Path(cache_dir or os.environ.get("SCANNER_CACHE_DIR", "/tmp/cyber-ai-cache"))
         self.cache_file = self.cache_dir / "cve_cache.json"
-        self.cache_dir.mkdir(exist_ok=True)
+        try:
+            self.cache_dir.mkdir(exist_ok=True)
+            logging.info(f"Using cache directory: {self.cache_dir}")
+        except Exception as e:
+            logging.error(f"Error creating CVE cache directory: {str(e)}")
         
     async def get_latest_cves(self) -> dict:
         """Get latest CVEs, using cache if available and not expired"""

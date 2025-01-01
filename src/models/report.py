@@ -1,35 +1,23 @@
-from datetime import datetime
-from typing import Optional, List, Dict, Any
-from beanie import Document, Link
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import List, Dict, Optional
+from datetime import datetime
+from beanie import Document
 
 class ReportType(str, Enum):
-    VULNERABILITY = "vulnerability"
-    SECURITY_POSTURE = "security_posture"
-    COMPLIANCE = "compliance"
-    INCIDENT = "incident"
+    SCAN = "scan"
+    ASSESSMENT = "assessment"
+    AUDIT = "audit"
 
 class Report(Document):
     title: str
-    type: ReportType
+    type: str
     description: str
-    data: Dict[str, Any]
-    markdown_content: Optional[str] = None
-    ai_summary: Optional[str] = None
-    user_id: str
     scan_ids: List[str]
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    class Settings:
-        name = "reports"
-        indexes = [
-            "type",
-            "user_id",
-            [("user_id", 1), ("generated_at", -1)]
-        ]
+    user_id: str
+    generated_at: datetime
+    data: Dict
+    markdown_content: str
+    ai_summary: Optional[str] = None
 
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        } 
+    class Settings:
+        name = "reports" 

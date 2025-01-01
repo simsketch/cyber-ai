@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "dev": "./dev.sh"
+    "dev": "echo 'Please run dev commands from backend/ and frontend/ folders separately'"
   },
   "dependencies": {
     "@nivo/line": "^0.88.0",
