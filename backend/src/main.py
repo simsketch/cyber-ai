@@ -20,42 +20,50 @@ from bson import ObjectId
 from utils.cve_cache import CVECache
 import uvicorn
 from scanners.vulnerability_scanner import VulnerabilityScanner
+from pathlib import Path
 
-# Configure logging
+# Configure logging with more detailed format
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+logger = logging.getLogger(__name__)
 
-# Initialize CVE cache
-CACHE_DIR = "/tmp/cyber-ai-cache"
+# Initialize CVE cache in the local repository
+CACHE_DIR = Path(__file__).parent / "cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
-os.environ["SCANNER_CACHE_DIR"] = CACHE_DIR
+os.environ["SCANNER_CACHE_DIR"] = str(CACHE_DIR)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
+# Create FastAPI app instance
+app = FastAPI(title="Cyber AI API")
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup"""
     try:
+        logger.info("Starting application initialization...")
+        
         # Ensure cache directory exists and has correct permissions
         os.chmod(CACHE_DIR, 0o777)  # Allow all users to write to cache
-        logging.info(f"Cache directory {CACHE_DIR} created and permissions set")
+        logger.info(f"Cache directory {CACHE_DIR} created and permissions set")
         
-        # Initialize CVE cache on startup
-        cve_cache = CVECache(CACHE_DIR)
+        # Initialize CVE cache
+        logger.info("Starting CVE cache initialization...")
+        cve_cache = CVECache(str(CACHE_DIR))
+        logger.info("Forcing initial CVE cache update...")
         await cve_cache.force_update()  # Force initial update
-        logging.info("CVE cache initialized and updated")
+        logger.info("CVE cache initialized and updated successfully")
         
         # Initialize database
+        logger.info("Starting database initialization...")
         await init_db()
-        logging.info("Database initialized")
+        logger.info("Database initialized successfully")
+        
+        logger.info("Application initialization completed successfully")
     except Exception as e:
-        logging.error(f"Startup error: {e}")
-        raise
-    yield
-    # Shutdown
-    pass
-
-app = FastAPI(title="Cyber AI API", lifespan=lifespan)
+        logger.error(f"Critical initialization error: {str(e)}", exc_info=True)
+        # Don't raise the error, just log it
+        # This allows the server to start even if initialization fails
 
 # Configure CORS
 app.add_middleware(
@@ -65,6 +73,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all incoming requests with processing time"""
+    logger.debug(f"Incoming request: {request.method} {request.url}")
+    start_time = datetime.now()
+    try:
+        response = await call_next(request)
+        process_time = (datetime.now() - start_time).total_seconds()
+        logger.debug(f"Request completed: {request.method} {request.url} - Status: {response.status_code} - Time: {process_time}s")
+        return response
+    except Exception as e:
+        logger.error(f"Request failed: {request.method} {request.url} - Error: {str(e)}")
+        raise
+
+@app.get("/health")
+async def health_check():
+    """Basic health check endpoint"""
+    logger.debug("Health check requested")
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 active_scans = {}
 
@@ -78,25 +106,19 @@ class ScanCreate(BaseModel):
 async def get_cves():
     """Get latest CVEs from cache"""
     try:
-        logging.info("Initializing CVE cache...")
-        # Initialize CVECache with the configured cache directory
-        cache_dir = os.environ.get("SCANNER_CACHE_DIR", "/tmp/cyber-ai-cache")
-        os.makedirs(cache_dir, exist_ok=True)  # Ensure directory exists
+        logger.debug("Handling GET /api/v1/cves request")
+        cve_cache = CVECache(str(CACHE_DIR))
         
-        cve_cache = CVECache(cache_dir)
-        logging.info("CVE cache initialized, checking validity...")
-        
-        # Force update if cache is invalid or missing
-        if not cve_cache._is_cache_valid():
-            logging.info("CVE cache is invalid or missing, forcing update...")
-            cve_data = await cve_cache.force_update()
-            logging.info("CVE cache updated successfully")
-        else:
-            logging.info("CVE cache is valid, fetching data...")
+        # Use cached data if valid
+        if cve_cache._is_cache_valid():
+            logger.info("Using valid cache data...")
             cve_data = await cve_cache.get_latest_cves()
+        else:
+            logger.info("Cache invalid, fetching new data...")
+            cve_data = await cve_cache.force_update()
         
         if not cve_data or 'cves' not in cve_data:
-            logging.error("No CVE data available in response")
+            logger.error("No CVE data available in response")
             raise HTTPException(status_code=500, detail="Failed to fetch CVE data")
             
         # Sort CVEs by published date (most recent first)
@@ -106,13 +128,13 @@ async def get_cves():
             reverse=True
         )
         
-        logging.info(f"Successfully retrieved {len(sorted_cves)} CVEs")
+        logger.info(f"Successfully retrieved {len(sorted_cves)} CVEs")
         return {
             "timestamp": cve_data.get('timestamp'),
             "cves": sorted_cves
         }
     except Exception as e:
-        logging.error(f"Error fetching CVEs: {str(e)}")
+        logger.error(f"Error fetching CVEs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 async def execute_scan(scan: Scan):
@@ -149,10 +171,54 @@ async def execute_scan(scan: Scan):
         scan.completed_at = datetime.now(timezone.utc)
         await scan.save()
         
-        logging.info(f"Scan completed for {scan.target} with {total_vulnerabilities} vulnerabilities found")
+        # Calculate scan duration
+        scan_duration = (scan.completed_at - scan.started_at).total_seconds()
+        
+        # Calculate health score based on vulnerabilities and their severity
+        total_score = 100
+        for vuln in vulnerabilities:
+            if vuln.severity == 'high':
+                total_score -= 20
+            elif vuln.severity == 'medium':
+                total_score -= 10
+            elif vuln.severity == 'low':
+                total_score -= 5
+        health_score = max(0, total_score)
+        health_rating = "Good" if health_score >= 80 else "Fair" if health_score >= 60 else "Poor"
+        
+        # Create report
+        report = Report(
+            title=f"Security Assessment Report: {scan.target}",
+            type="scan",
+            description=f"Comprehensive security assessment for {scan.target}",
+            scan_ids=[str(scan.id)],
+            user_id=scan.user_id,
+            generated_at=datetime.now(timezone.utc),
+            data={
+                "scan_id": str(scan.id),
+                "target": scan.target,
+                "total_vulnerabilities": total_vulnerabilities,
+                "vulnerabilities": [v.dict() for v in vulnerabilities],
+                "findings_summary": {
+                    "high": len([v for v in vulnerabilities if v.severity == 'high']),
+                    "medium": len([v for v in vulnerabilities if v.severity == 'medium']),
+                    "low": len([v for v in vulnerabilities if v.severity == 'low'])
+                }
+            },
+            markdown_content="",  # Will be generated by AI
+            scan_duration=scan_duration,
+            health_score=health_score,
+            health_rating=health_rating
+        )
+        
+        # Insert the report and ensure it's saved
+        await report.insert()
+        logger.info(f"Created report with health score {health_score} and rating {health_rating}")
+        
+        logger.info(f"Scan completed for {scan.target} with {total_vulnerabilities} vulnerabilities found")
         
     except Exception as e:
-        logging.error(f"Error executing scan: {str(e)}")
+        logger.error(f"Error executing scan: {str(e)}")
         scan.status = ScanStatus.FAILED
         scan.error = str(e)
         scan.completed_at = datetime.now(timezone.utc)
@@ -172,14 +238,14 @@ async def create_scan(scan_data: ScanCreate, db = Depends(get_db)):
             started_at=datetime.now(timezone.utc)
         )
         await scan.insert()
-        logging.info(f"Created new scan for target {scan_data.target}")
+        logger.info(f"Created new scan for target {scan_data.target}")
         
         # Start scan in background
         asyncio.create_task(execute_scan(scan))
         
         return scan.dict()
     except Exception as e:
-        logging.error(f"Error creating scan: {str(e)}")
+        logger.error(f"Error creating scan: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/scans")
@@ -191,7 +257,7 @@ async def list_scans(db = Depends(get_db), user_id: str = Header(None, alias="X-
         scans = await Scan.find({"user_id": user_id}).sort("-created_at").to_list()
         return [scan.dict() for scan in scans]
     except Exception as e:
-        logging.error(f"Error listing scans: {str(e)}")
+        logger.error(f"Error listing scans: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/scans/{scan_id}")
@@ -203,14 +269,62 @@ async def get_scan(scan_id: str, db = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Scan not found")
         return scan.dict()
     except Exception as e:
-        logging.error(f"Error getting scan: {str(e)}")
+        logger.error(f"Error getting scan: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/reports")
+async def list_reports(db = Depends(get_db), user_id: str = Header(None, alias="X-User-ID")):
+    """List all reports for a user"""
+    try:
+        if not user_id:
+            raise HTTPException(status_code=400, detail="X-User-ID header is required")
+        reports = await Report.find({"user_id": user_id}).sort("-generated_at").to_list()
+        return [{
+            **report.dict(),
+            "id": str(report.id),  # Convert ObjectId to string
+            "_id": str(report.id)  # Also include _id for frontend compatibility
+        } for report in reports]
+    except Exception as e:
+        logger.error(f"Error listing reports: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/reports/{report_id}")
+async def get_report(report_id: str, db = Depends(get_db), user_id: str = Header(None, alias="X-User-ID")):
+    """Get report details"""
+    try:
+        if not user_id:
+            raise HTTPException(status_code=400, detail="X-User-ID header is required")
+        try:
+            report_obj_id = ObjectId(report_id)
+        except:
+            raise HTTPException(status_code=400, detail="Invalid report ID format")
+            
+        report = await Report.get(report_obj_id)
+        if not report:
+            raise HTTPException(status_code=404, detail="Report not found")
+        if report.user_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this report")
+            
+        report_dict = report.dict()
+        report_dict["id"] = str(report.id)  # Convert ObjectId to string
+        report_dict["_id"] = str(report.id)  # Also include _id for frontend compatibility
+        
+        # Ensure health score and rating are included
+        report_dict["health_score"] = report.health_score
+        report_dict["health_rating"] = report.health_rating
+        logger.debug(f"Returning report with health score: {report.health_score}, rating: {report.health_rating}")
+        
+        return report_dict
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting report: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",
+        app,
         host="0.0.0.0",
         port=8000,
-        reload=True,
-        log_level="info"
+        log_level="debug"
     )
