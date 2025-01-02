@@ -1,0 +1,31 @@
+[
+  {
+    "scan_type": "domain",
+    "timestamp": "2024-12-28T17:44:29.621637",
+    "results": {
+      "ip_addresses": [
+        "109.176.239.70",
+        "109.176.239.69"
+      ],
+      "mx_records": [
+        "alt2.aspmx.l.google.com.",
+        "alt1.aspmx.l.google.com.",
+        "aspmx.l.google.com.",
+        "alt4.aspmx.l.google.com.",
+        "alt3.aspmx.l.google.com."
+      ],
+      "txt_records": [
+        "\"google-site-verification=p8Ke_ETLIL22PW1uxiNOfE_-hLZ2LQd9KmdQS9bARa8\"",
+        "\"oneuptime-verification-gKfEKTDuakVmbIHNRkpU\"",
+        "\"atlassian-sending-domain-verification=469d03af-e04b-4609-a67a-0c4161077605\"",
+        "\"1password-site-verification=4ZZGMSMKHBCCTHWRCUW5TEFLCA\"",
+        "\"v=spf1 include:md02.com include:amazonses.com include:_u.hackthebox.com._spf.smart.ondmarc.com ~all\"",
+        "\"google-site-verification=5Zgk1p8QogX_Q_WaZ3PNUx0jaBMcR2CXXD1SYeHk_uM\"",
+        "\"atlassian-domain-verification=BOEsvQIaiNXegte2TKsFBSjaCETV5f2f7rvcTiirvI/v9l56nU97DGOQfJIXWJJN\"",
+        "\"facebook-domain-verification=2ic10ka7c5jbl7ou7nva60919jn15w\"",
+        "\"brevo-code:293be74b395c496ce75d12a22ce91aee\""
+      ],
+      "target": "hackthebox.com"
+    }
+  }
+]

@@ -1,0 +1,219 @@
+[
+  {
+    "scan_type": "domain",
+    "timestamp": "2024-12-29T20:08:01.193664",
+    "results": {
+      "target": "hackthebox.com",
+      "ip_addresses": [
+        {
+          "ip": "109.176.239.69",
+          "hostname": null
+        },
+        {
+          "ip": "109.176.239.70",
+          "hostname": null
+        }
+      ],
+      "nameservers": [
+        "jill.ns.cloudflare.com.",
+        "cody.ns.cloudflare.com."
+      ],
+      "mx_records": [
+        {
+          "exchange": "aspmx.l.google.com.",
+          "preference": 1
+        },
+        {
+          "exchange": "alt4.aspmx.l.google.com.",
+          "preference": 10
+        },
+        {
+          "exchange": "alt2.aspmx.l.google.com.",
+          "preference": 5
+        },
+        {
+          "exchange": "alt1.aspmx.l.google.com.",
+          "preference": 5
+        },
+        {
+          "exchange": "alt3.aspmx.l.google.com.",
+          "preference": 10
+        }
+      ],
+      "txt_records": [
+        "\"oneuptime-verification-gKfEKTDuakVmbIHNRkpU\"",
+        "\"1password-site-verification=4ZZGMSMKHBCCTHWRCUW5TEFLCA\"",
+        "\"brevo-code:293be74b395c496ce75d12a22ce91aee\"",
+        "\"facebook-domain-verification=2ic10ka7c5jbl7ou7nva60919jn15w\"",
+        "\"v=spf1 include:md02.com include:amazonses.com include:_u.hackthebox.com._spf.smart.ondmarc.com ~all\"",
+        "\"google-site-verification=5Zgk1p8QogX_Q_WaZ3PNUx0jaBMcR2CXXD1SYeHk_uM\"",
+        "\"google-site-verification=p8Ke_ETLIL22PW1uxiNOfE_-hLZ2LQd9KmdQS9bARa8\"",
+        "\"atlassian-domain-verification=BOEsvQIaiNXegte2TKsFBSjaCETV5f2f7rvcTiirvI/v9l56nU97DGOQfJIXWJJN\"",
+        "\"atlassian-sending-domain-verification=469d03af-e04b-4609-a67a-0c4161077605\""
+      ],
+      "attack_surface": {
+        "total_ips": 2,
+        "total_nameservers": 2,
+        "mail_servers": 5
+      }
+    }
+  },
+  {
+    "scan_type": "subdomain",
+    "timestamp": "2024-12-29T20:08:03.296966",
+    "results": {
+      "target": "hackthebox.com",
+      "subdomains": [
+        {
+          "subdomain": "www.hackthebox.com",
+          "ip_addresses": [
+            "109.176.239.70",
+            "109.176.239.69"
+          ],
+          "discovery_method": "bruteforce",
+          "http_status": 200
+        },
+        {
+          "subdomain": "app.hackthebox.com",
+          "ip_addresses": [
+            "109.176.239.69",
+            "109.176.239.70"
+          ],
+          "discovery_method": "bruteforce",
+          "http_status": 200
+        },
+        {
+          "subdomain": "cdn.hackthebox.com",
+          "ip_addresses": [
+            "109.176.239.70",
+            "109.176.239.69"
+          ],
+          "discovery_method": "bruteforce",
+          "http_status": 404
+        }
+      ],
+      "zone_transfer_vulnerable": false,
+      "attack_surface": {
+        "total_subdomains": 3,
+        "unique_ips": 2,
+        "zone_transfer_count": 0
+      }
+    }
+  },
+  {
+    "scan_type": "port",
+    "timestamp": "2024-12-29T20:08:03.390179",
+    "results": {
+      "error": "'You requested a scan type which requires root privileges.\\nQUITTING!\\n'",
+      "target": "hackthebox.com"
+    }
+  },
+  {
+    "scan_type": "tech",
+    "timestamp": "2024-12-29T20:08:03.870706",
+    "results": {
+      "target": "hackthebox.com",
+      "technologies": {
+        "server": "cloudflare",
+        "powered_by": null,
+        "frameworks": [
+          "React",
+          "Angular",
+          "Vue"
+        ],
+        "analytics": [],
+        "security_headers": {
+          "x-frame-options": null,
+          "x-xss-protection": null,
+          "content-security-policy": null,
+          "strict-transport-security": null
+        },
+        "cookies": [
+          {
+            "name": "__cf_bm",
+            "secure": true,
+            "httponly": true
+          }
+        ],
+        "javascript_libraries": []
+      },
+      "attack_surface": {
+        "missing_security_headers": [
+          "x-frame-options",
+          "x-xss-protection",
+          "content-security-policy",
+          "strict-transport-security"
+        ],
+        "insecure_cookies": 0
+      }
+    }
+  },
+  {
+    "scan_type": "waf",
+    "timestamp": "2024-12-29T20:08:04.721584",
+    "results": {
+      "target": "hackthebox.com",
+      "full_url": "https://hackthebox.com",
+      "waf_detected": true,
+      "waf_details": [
+        "WAF detected: cloudflare (from Server)"
+      ],
+      "test_results": [
+        {
+          "test_name": "Generic XSS",
+          "blocked": false,
+          "status_code": 302
+        },
+        {
+          "test_name": "SQL Injection",
+          "blocked": false,
+          "status_code": 302
+        },
+        {
+          "test_name": "Common WAF Headers",
+          "blocked": false,
+          "status_code": 302
+        }
+      ],
+      "attack_surface": {
+        "waf_effectiveness": 0.0,
+        "protection_level": "MEDIUM"
+      }
+    }
+  },
+  {
+    "scan_type": "fuzzer",
+    "timestamp": "2024-12-29T20:08:07.022827",
+    "results": {
+      "target": "hackthebox.com",
+      "total_urls_tested": 269,
+      "found_urls": [],
+      "findings": {
+        "sensitive_files": [],
+        "backup_files": [],
+        "potential_vulnerabilities": []
+      },
+      "attack_surface": {
+        "total_findings": 0,
+        "sensitive_file_count": 0,
+        "backup_file_count": 0,
+        "server_error_count": 0,
+        "risk_level": "LOW"
+      }
+    }
+  },
+  {
+    "scan_type": "vulnerability",
+    "timestamp": "2024-12-29T20:08:07.662110",
+    "results": {
+      "target": "hackthebox.com",
+      "vulnerabilities": {},
+      "attack_surface": {
+        "total_vulnerabilities": 0,
+        "vulnerability_types": [],
+        "risk_level": "LOW",
+        "most_vulnerable_endpoints": []
+      }
+    }
+  }
+]

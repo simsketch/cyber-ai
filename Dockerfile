@@ -42,7 +42,7 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN pip3 install --no-cache-dir --upgrade pip==23.3.2
 
 # Copy application files
-COPY src/ ./src/
+COPY backend/src/ ./src/
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir -r src/requirements.txt

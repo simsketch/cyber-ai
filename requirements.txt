@@ -19,3 +19,4 @@ rich>=13.0.0
 wfuzz==2.4.7
 wafw00f>=2.2.0
 reportlab>=4.0.0
+sublist3r==1.0

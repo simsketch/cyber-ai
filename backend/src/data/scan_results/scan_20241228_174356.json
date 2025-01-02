@@ -1,0 +1,10 @@
+[
+  {
+    "scan_type": "domain",
+    "timestamp": "2024-12-28T17:43:51.786321",
+    "results": {
+      "error": "The DNS query name does not exist: https://www.hackthebox.com/.",
+      "target": "https://www.hackthebox.com/"
+    }
+  }
+]
