@@ -7,7 +7,7 @@ echo "Starting Cyber AI development environment..."
 
 # Start the backend with better logging
 echo "Starting backend server..."
-cd "$SCRIPT_DIR/src" && python3 -m uvicorn main:app --reload --port 8000 --log-level debug &
+cd "$SCRIPT_DIR/backend/src" && python3 -m uvicorn main:app --reload --port 8000 --log-level debug &
 
 # Start the frontend
 echo "Starting frontend..."
