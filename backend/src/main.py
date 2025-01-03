@@ -68,7 +68,7 @@ async def startup_event():
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "https://zerodaybeta.betwixtai.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
