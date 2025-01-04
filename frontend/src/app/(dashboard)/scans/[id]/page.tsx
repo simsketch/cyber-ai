@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useUser } from '@clerk/nextjs'
+import { useUser } from '@auth0/nextjs-auth0/client'
 import { getScan } from '@/lib/api/scans'
 import { Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -13,18 +13,18 @@ import { GlitchLogo } from '@/components/ui/glitch-logo'
 
 export default function ScanDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const { user, isLoaded: isUserLoaded } = useUser()
+  const { user, isLoading: isUserLoading } = useUser()
   
   const { data: scan, isLoading, error } = useQuery({
     queryKey: ['scan', params.id],
     queryFn: async () => {
-      if (!user?.id) throw new Error('Not authenticated')
-      return getScan(params.id, user.id)
+      if (!user?.sub) throw new Error('Not authenticated')
+      return getScan(params.id, user.sub)
     },
-    enabled: !!user?.id && isUserLoaded
+    enabled: !!user?.sub && !isUserLoading
   })
 
-  if (!isUserLoaded) {
+  if (isUserLoading) {
     return null
   }
 

@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr
 
 class User(Document):
     email: EmailStr
-    clerk_id: str
+    auth0_id: str
     name: Optional[str] = None
     created_at: datetime = datetime.utcnow()
     last_login: Optional[datetime] = None
@@ -15,7 +15,7 @@ class User(Document):
         name = "users"
         indexes = [
             "email",
-            "clerk_id",
+            "auth0_id",
             [("email", 1), ("created_at", -1)]
         ]
 

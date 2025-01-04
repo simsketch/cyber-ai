@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useUser } from '@clerk/nextjs'
+import { useUser } from '@auth0/nextjs-auth0/client'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -20,7 +20,7 @@ export function useWebSocket() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.sub) return
 
     function connect() {
       try {
@@ -28,7 +28,7 @@ export function useWebSocket() {
         const apiUrl = new URL(API_BASE_URL)
         // Create WebSocket URL using the same host but with ws/wss protocol
         const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
-        const wsUrl = `${protocol}//${apiUrl.host}/ws/${user.id}`
+        const wsUrl = `${protocol}//${apiUrl.host}/ws/${user?.sub}`
         console.log('Connecting to WebSocket:', wsUrl)
         
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -94,7 +94,7 @@ export function useWebSocket() {
         clearTimeout(reconnectTimeoutRef.current)
       }
     }
-  }, [user?.id]) // Reconnect if user ID changes
+  }, [user?.sub]) // Reconnect if user ID changes
 
   return { lastMessage, isConnected }
 } 

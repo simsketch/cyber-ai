@@ -1,28 +1,16 @@
 'use client'
 
 import * as React from 'react'
-import { ClerkProvider } from '@clerk/nextjs'
-import { dark } from '@clerk/themes'
+import { UserProvider } from '@auth0/nextjs-auth0/client'
 
 export function AuthProvider({
   children,
 }: {
   children: React.ReactNode
 }) {
-  console.log('process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY')
-  console.log(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   return (
-    <ClerkProvider
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      appearance={{
-        baseTheme: dark,
-        elements: {
-          card: "bg-background",
-          formButtonPrimary: "bg-primary text-primary-foreground hover:bg-primary/90",
-        }
-      }}
-    >
+    <UserProvider>
       {children}
-    </ClerkProvider>
+    </UserProvider>
   )
 } 

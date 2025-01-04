@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
+import { UserNav } from '@/components/layout/user-button'
 import { ModeToggle } from '@/components/mode-toggle'
 
 export function Navbar() {
@@ -11,7 +11,7 @@ export function Navbar() {
         </Link>
         <div className="ml-auto flex items-center space-x-4">
           <ModeToggle />
-          <UserButton afterSignOutUrl="/sign-in" />
+          <UserNav />
         </div>
       </div>
     </div>

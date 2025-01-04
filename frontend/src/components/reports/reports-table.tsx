@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useUser } from '@clerk/nextjs'
+import { useUser } from '@auth0/nextjs-auth0/client'
 import { getReports } from '@/lib/api/reports'
 import { Report } from '@/types/reports'
 import {
@@ -21,18 +21,18 @@ import { GlitchLogo } from '../ui/glitch-logo'
 
 export function ReportsTable() {
   const router = useRouter()
-  const { user, isLoaded: isUserLoaded } = useUser()
+  const { user, isLoading: isUserLoading } = useUser()
   
   const { data: reports, isLoading: isReportsLoading, error } = useQuery({
-    queryKey: ['reports', user?.id],
+    queryKey: ['reports', user?.sub],
     queryFn: async () => {
-      if (!user?.id) {
+      if (!user?.sub) {
         console.error('No user ID available')
         throw new Error('No user ID')
       }
-      console.log('Starting reports fetch for user:', user.id)
+      console.log('Starting reports fetch for user:', user.sub)
       try {
-        const result = await getReports(user.id)
+        const result = await getReports(user.sub)
         console.log('Reports fetch result:', result)
         return result
       } catch (e) {
@@ -40,10 +40,10 @@ export function ReportsTable() {
         throw e
       }
     },
-    enabled: !!user?.id && isUserLoaded
+    enabled: !!user?.sub && !isUserLoading
   })
 
-  if (!isUserLoaded) {
+  if (isUserLoading) {
     return null
   }
 

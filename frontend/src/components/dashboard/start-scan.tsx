@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useUser } from '@clerk/nextjs'
+import { useUser } from '@auth0/nextjs-auth0/client'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,7 @@ export function StartScan() {
   const { toast } = useToast()
 
   const mutation = useMutation({
-    mutationFn: () => startScan(target, user?.id || '', isComprehensive),
+    mutationFn: () => startScan(target, user?.sub || '', isComprehensive),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scans'] })
       toast({
@@ -48,7 +48,7 @@ export function StartScan() {
       })
       return
     }
-    if (!user?.id) {
+    if (!user?.sub) {
       toast({
         title: 'Error',
         description: 'You must be logged in to start a scan.',

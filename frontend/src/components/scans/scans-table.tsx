@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { useUser } from '@clerk/nextjs'
+import { useUser } from '@auth0/nextjs-auth0/client'
 import { getScans, cancelScan } from '@/lib/api/scans'
 import { Scan } from '@/types/scans'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -42,19 +42,19 @@ function formatDuration(startDate: string | null, endDate: string | null | undef
 export function ScansTable() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { user, isLoaded: isUserLoaded } = useUser()
+  const { user, isLoading: isUserLoading } = useUser()
   const { toast } = useToast()
   
   const { data: scans, isLoading: isScansLoading, error } = useQuery({
-    queryKey: ['scans', user?.id],
+    queryKey: ['scans', user?.sub],
     queryFn: async () => {
-      if (!user?.id) {
+      if (!user?.sub) {
         console.error('No user ID available')
         throw new Error('No user ID')
       }
-      console.log('Starting scan fetch for user:', user.id)
+      console.log('Starting scan fetch for user:', user.sub)
       try {
-        const result = await getScans(user.id)
+        const result = await getScans(user.sub)
         console.log('Scan fetch result:', result)
         return result
       } catch (e) {
@@ -62,15 +62,15 @@ export function ScansTable() {
         throw e
       }
     },
-    enabled: !!user?.id && isUserLoaded,
+    enabled: !!user?.sub && !isUserLoading,
     retry: 1
   })
 
   // Add cancel scan mutation
   const cancelMutation = useMutation({
     mutationFn: async (scanId: string) => {
-      if (!user?.id) throw new Error('Not authenticated')
-      return cancelScan(scanId, user.id)
+      if (!user?.sub) throw new Error('Not authenticated')
+      return cancelScan(scanId, user.sub)
     },
     onSuccess: () => {
       toast({
@@ -124,7 +124,7 @@ export function ScansTable() {
     }
   }, [scans, toast, router])
 
-  if (!isUserLoaded) {
+  if (isUserLoading) {
     return null
   }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useUser } from '@clerk/nextjs'
+import { useUser } from '@auth0/nextjs-auth0/client'
 import { getReport } from '@/lib/api/reports'
 import { ArrowLeft, AlertTriangle, Shield, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -40,18 +40,18 @@ function formatLocalDateTime(dateStr: string) {
 // Move the client component logic to a separate component
 function ReportDetails({ id }: { id: string }) {
   const router = useRouter()
-  const { user, isLoaded: isUserLoaded } = useUser()
+  const { user, isLoading: isUserLoading } = useUser()
   
   const { data: report, isLoading, error } = useQuery({
     queryKey: ['report', id],
     queryFn: async () => {
-      if (!user?.id) throw new Error('Not authenticated')
-      return getReport(id, user.id)
+      if (!user?.sub) throw new Error('Not authenticated')
+      return getReport(id, user.sub)
     },
-    enabled: !!user?.id && isUserLoaded
+    enabled: !!user?.sub && !isUserLoading
   })
 
-  if (!isUserLoaded || isLoading) {
+  if (isUserLoading || isLoading) {
     return (
       <div className="flex h-[400px] items-center justify-center">
         <GlitchLogo />
