@@ -35,14 +35,14 @@ const withCorsHeaders = (handler: any) => async (...args: any[]) => {
 
 // Create handlers for each auth route
 const handlers = {
-  '/api/auth/login': handleLogin({
+  login: handleLogin({
     returnTo: '/dashboard',
     authorizationParams: {
       audience: process.env.AUTH0_AUDIENCE,
       scope: process.env.AUTH0_SCOPE,
     },
   }),
-  '/api/auth/signup': handleLogin({
+  signup: handleLogin({
     returnTo: '/dashboard',
     authorizationParams: {
       screen_hint: 'signup',
@@ -50,19 +50,25 @@ const handlers = {
       scope: process.env.AUTH0_SCOPE,
     },
   }),
-  '/api/auth/callback': handleCallback({
+  callback: handleCallback({
     afterCallback: (_req: NextApiRequest, _res: NextApiResponse, session: Session) => {
       return session
     },
   }),
-  '/api/auth/logout': handleLogout({
+  logout: handleLogout({
     returnTo: '/',
   }),
-  '/api/auth/me': handleProfile(),
+  me: handleProfile(),
 }
 
 // Main handler that routes to the appropriate auth handler
-export const GET = withCorsHeaders(handleAuth(handlers))
+export const GET = withCorsHeaders(async (request: Request, { params }: { params: { auth0: string } }) => {
+  const handler = handlers[params.auth0 as keyof typeof handlers]
+  if (!handler) {
+    return new NextResponse(null, { status: 404 })
+  }
+  return handleAuth(handlers)(request)
+})
 
 // Handle OPTIONS requests for CORS
 export async function OPTIONS() {
