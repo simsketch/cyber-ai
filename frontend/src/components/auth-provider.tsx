@@ -9,6 +9,8 @@ export function AuthProvider({
 }: {
   children: React.ReactNode
 }) {
+  console.log('process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY')
+  console.log(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}

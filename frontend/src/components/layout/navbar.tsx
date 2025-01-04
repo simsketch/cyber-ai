@@ -11,7 +11,7 @@ export function Navbar() {
         </Link>
         <div className="ml-auto flex items-center space-x-4">
           <ModeToggle />
-          <UserButton afterSignOutUrl="/" />
+          <UserButton afterSignOutUrl="/sign-in" />
         </div>
       </div>
     </div>

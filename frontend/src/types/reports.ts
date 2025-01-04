@@ -22,11 +22,25 @@ export interface Report {
       cvss_score?: number
       cve_id?: string
       remediation?: string
+      evidence?: {
+        payload?: string
+        endpoints?: Array<{
+          url: string
+          method: string
+          status: number
+        }>
+      }
     }>
     findings_summary: {
       high: number
       medium: number
       low: number
+    }
+    port_results?: {
+      open_ports?: Array<{
+        port: number
+        service: string
+      }>
     }
   }
 } 

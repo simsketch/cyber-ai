@@ -4,7 +4,7 @@ export function UserNav() {
   return (
     <div className="flex items-center gap-4">
       <UserButton
-        afterSignOutUrl="/"
+        afterSignOutUrl="/sign-in"
         appearance={{
           elements: {
             avatarBox: "h-9 w-9",

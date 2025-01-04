@@ -44,3 +44,4 @@ node_modules/
 docs/node_modules
 
 frontend/.next/*
+backend/src/cache/*
