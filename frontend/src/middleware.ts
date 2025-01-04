@@ -4,6 +4,14 @@ import { authMiddleware } from "@clerk/nextjs";
 export default authMiddleware({
   publicRoutes: ["/", "/sign-in", "/sign-up"],
   beforeAuth: (req) => {
+    // Force HTTPS in production
+    const url = new URL(req.url);
+    if (process.env.NODE_ENV === 'production' && url.protocol === 'http:') {
+      url.protocol = 'https:';
+      url.host = 'zerodaybeta.betwixtai.com';
+      return Response.redirect(url.toString());
+    }
+
     console.log('\n[Auth Debug] ---- New Request ----');
     console.log('[Auth Debug] Request URL:', req.url);
     console.log('[Auth Debug] Method:', req.method);
@@ -37,6 +45,7 @@ export default authMiddleware({
     }
     return null;
   },
+  debug: true,
 });
 
 export const config = {
