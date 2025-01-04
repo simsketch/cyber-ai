@@ -12,7 +12,7 @@ source ~/venv/bin/activate && cd "$SCRIPT_DIR/backend/src" && python3 -m uvicorn
 
 # Start the frontend
 echo "Starting frontend..."
-cd "$SCRIPT_DIR/frontend" && pnpm dev &
+cd "$SCRIPT_DIR/frontend" && pnpm build && pnpm start &
 
 # Wait for all background processes
 wait 
