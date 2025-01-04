@@ -4,9 +4,22 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
+        // Handle all Auth0 routes
         {
-          source: '/api/auth/:path*',
-          destination: '/api/auth/[auth0]/:path*',
+          source: '/api/auth/login',
+          destination: '/api/auth/[auth0]/login',
+        },
+        {
+          source: '/api/auth/logout',
+          destination: '/api/auth/[auth0]/logout',
+        },
+        {
+          source: '/api/auth/callback',
+          destination: '/api/auth/[auth0]/callback',
+        },
+        {
+          source: '/api/auth/me',
+          destination: '/api/auth/[auth0]/me',
         },
       ],
     }
