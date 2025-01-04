@@ -15,6 +15,12 @@ export default authMiddleware({
         console.log('[Auth Debug] Redirecting to:', redirectUrl);
         return Response.redirect(redirectUrl);
       }
+
+      // Fix the request URL to match the actual domain
+      if (req.nextUrl.hostname === 'localhost') {
+        req.nextUrl.protocol = 'https';
+        req.nextUrl.hostname = host;
+      }
     }
 
     console.log('\n[Auth Debug] ---- New Request ----');
